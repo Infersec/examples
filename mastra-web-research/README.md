@@ -1,14 +1,14 @@
 # Infersec + Mastra: Web Research Agent
 
-A small [Mastra](https://mastra.ai) agent that researches questions on the web, powered by a model hosted on [Infersec](https://infersec.ai).
+A small [Mastra](https://mastra.ai) multi-agent workflow that researches questions on the web, powered by models hosted on [Infersec](https://infersec.ai).
 
-The agent uses two tools — web search and page fetching — to find sources, read them, and write a cited answer. It demonstrates how to point Mastra's model layer at any OpenAI-compatible endpoint, in this case Infersec.
+A **researcher** agent uses two tools — web search and page fetching — to find sources, read them, and write a cited answer. A **reviewer** agent then checks the draft for grounding, accuracy, and completeness; if it finds gaps, the researcher revises. It demonstrates how to point Mastra's model layer at any OpenAI-compatible endpoint, in this case Infersec.
 
 ## How it works
 
-- **Model**: served by Infersec through its OpenAI-compatible API. Mastra connects to it with a custom `url` and `apiKey`.
+- **Agents**: a `researcher` (web tools) and a `reviewer` (no tools, returns a structured verdict + critique), both served by Infersec through its OpenAI-compatible API.
 - **Tools**: `web-search` (DuckDuckGo, no extra API key) and `fetch-url` (downloads a page and returns its text).
-- **Loop**: Mastra runs the agent across multiple steps — search, fetch, synthesize — until it produces a final answer.
+- **Workflow**: a Mastra workflow runs `research → review` in a loop (capped at 3 rounds). Each round the reviewer either approves the draft or sends a critique back to the researcher for revision.
 
 ## Connecting to Infersec
 
@@ -70,7 +70,7 @@ Ask a question from the command line:
 npm start -- "What changed in the latest release of Node.js?"
 ```
 
-The runner prints each tool call as it happens, followed by the final answer.
+The runner prints each tool call as it happens, plus the reviewer's verdict each round, followed by the final answer.
 
 `start` compiles the TypeScript to `dist/` (via `npm run build`) and then runs the compiled output, so no separate build step is needed. To compile manually, run `npm run build`; to produce the Mastra deploy bundle, run `npm run build:deploy`.
 
@@ -87,11 +87,17 @@ Studio runs at http://localhost:4111.
 ```text
 src/
   mastra/
-    agents/researcher.ts   the agent + Infersec model config
+    agents/
+      researcher.ts        web research agent
+      reviewer.ts          draft review agent (structured verdict)
     tools/
       web-search.ts        DuckDuckGo search tool
       fetch-url.ts         web page fetcher
-    lib/html.ts            small HTML-to-text helpers
+    workflows/
+      research.ts          research -> review loop workflow
+    lib/
+      model.ts             shared Infersec model config
+      html.ts              small HTML-to-text helpers
     index.ts               Mastra entry point
   run.ts                   CLI runner
 ```

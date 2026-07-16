@@ -2,7 +2,7 @@ import { createInterface } from "node:readline/promises";
 
 import { mastra } from "./mastra/index.js";
 
-const researcher = mastra.getAgentById("researcher");
+const workflow = mastra.getWorkflow("researchWorkflow");
 
 const arg = process.argv[2];
 const question = (arg ?? (await readQuestion())).trim();
@@ -12,21 +12,20 @@ if (!question) {
     process.exit(1);
 }
 
-console.log(`\nResearching: ${question}\n`);
+console.log(`\nResearching: ${question}`);
 
-const result = await researcher.generate(question, {
-    maxSteps: 8,
-    onStepFinish: ({ toolCalls }) => {
-        for (const call of toolCalls) {
-            const payload = call.payload;
-            if (payload?.toolName) {
-                console.log(`  -> ${payload.toolName}(${JSON.stringify(payload.args ?? {})})`);
-            }
-        }
+const run = await workflow.createRun();
+const result = await run.start({ inputData: { question } });
+
+if (result.status === "success") {
+    console.log(`\n${result.result.answer}\n`);
+    if (result.result.rounds > 1) {
+        console.log(`(Completed in ${result.result.rounds} research/review rounds.)\n`);
     }
-});
-
-console.log(`\n${result.text}\n`);
+} else {
+    console.error(`\nResearch failed: ${result.status}\n`);
+    process.exit(1);
+}
 
 async function readQuestion(): Promise<string> {
     const readline = createInterface({ input: process.stdin, output: process.stdout });
